@@ -37,35 +37,59 @@ def forward_backward_prop(X, labels, params, dimensions):
     W2 = np.reshape(params[ofs:ofs + H * Dy], (H, Dy))
     ofs += H * Dy
     b2 = np.reshape(params[ofs:ofs + Dy], (1, Dy))
-
     # Note: compute cost based on `sum` not `mean`.
     ### YOUR CODE HERE: forward propagation
     M = X.shape[0]
     hid_1 = np.dot(X, W1) + b1
     hid_1_sigmoid = sigmoid(hid_1)
     hid_2 = np.dot(hid_1_sigmoid, W2) + b2
-    labels = np.argmax(labels, axis=1)
-    # loss = score[np.arange(M), labels] / np.sum(score, axis=1).reshape(M, 1)
-    print(np.log(hid_2[np.arange(M), labels].reshape(M, 1) / np.sum(np.exp(hid_2), axis=1).reshape(M, 1) + 0.001))
-    loss = np.log(hid_2[np.arange(M), labels].reshape(M, 1) / (np.sum(np.exp(hid_2), axis=1).reshape(M, 1) + 0.0001))
+    y = np.argmax(labels, axis=1)
+    exp_sum = np.sum(np.exp(hid_2), axis=1).reshape(M, 1)
+    # loss = -np.log(np.exp(hid_2[np.arange(M), labels]) / exp_sum)
+    loss = np.log(exp_sum) - hid_2[np.arange(M), y].reshape(M, 1)
     loss = np.sum(loss) / M
-    dscore  = np.log(np.exp(hid_2) / np.sum(np.exp(hid_2), axis=1).reshape(M, 1))
-    dscore[np.arange(M), labels] -= 1
+    dscore  = np.exp(hid_2) / exp_sum
+    dscore[np.arange(M), y] -= 1
     dscore /= M
 
-    gradW2 = np.dot(hid_2.T, dscore)
-    gradb2 = np.sum(dscore, axis=0)
+    gradW2_c = np.dot(hid_2.T, dscore)
+    gradb2_c = np.sum(dscore, axis=0)
     grad_h2_x = np.dot(dscore, W2.T)
     grad_sigmoid = grad_h2_x * sigmoid_grad(hid_1_sigmoid)
-    gradW1 = np.dot(X.T, grad_sigmoid)
-    gradb1 = np.sum(grad_sigmoid, axis=0)
+    gradW1_c = np.dot(X.T, grad_sigmoid)
+    gradb1_c = np.sum(grad_sigmoid, axis=0)
     cost = loss
+    ### END YOUR CODE
+    hidden = sigmoid(X.dot(W1) + b1) # (N, H)
+    out = hidden.dot(W2) + b2 # (H, Dy)
+    N = X.shape[0]
     ### END YOUR CODE
 
     ### YOUR CODE HERE: backward propagation
+    #labels (N, Dy) -> (N, 1)
+    y = np.argmax(labels, axis=1)
+
+    cost = 0.0
+    correct_class_score = out[np.arange(N), y].reshape(N, 1)
+    exp_sum = np.sum(np.exp(out), axis=1).reshape(N, 1)
+    cost += np.sum(np.log(exp_sum) - correct_class_score)
+    cost /= N
+
+    margin = np.exp(out) / exp_sum
+    margin[np.arange(N), y] += -1 # (N, Dy)
+    margin /= N
+    gradW2 = hidden.T.dot(margin) # (H, N) * (N, Dy)
+    gradb2 = np.sum(margin, axis=0) # (1, Dy)
+
+    margin1 = margin.dot(W2.T) #(N, H)
+    margin1 *= sigmoid_grad(hidden) #
+    gradW1 = X.T.dot(margin1) #(Dx, N) * (N, H)
+    gradb1 = np.sum(margin1, axis=0)
+    print(np.sum(np.dot(hid_2.T,dscore)), np.sum(np.dot(hidden.T, margin)))
+    print(dscore[0], margin[0])
+    ### YOUR CODE HERE: backward propagation
 
     ### END YOUR CODE
-
     ### Stack gradients (do not modify)
     grad = np.concatenate((gradW1.flatten(), gradb1.flatten(),
         gradW2.flatten(), gradb2.flatten()))
@@ -82,6 +106,7 @@ def sanity_check():
 
     N = 20
     dimensions = [10, 5, 10]
+
     data = np.random.randn(N, dimensions[0])   # each row will be a datum
     labels = np.zeros((N, dimensions[2]))
     for i in xrange(N):
