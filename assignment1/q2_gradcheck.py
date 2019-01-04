@@ -87,7 +87,8 @@ def your_sanity_checks():
     """
     print "Running your sanity checks..."
     ### YOUR CODE HERE
-    raise NotImplementedError
+    exponent = lambda x: (np.sum(np.exp(x)), np.exp(x))
+    gradcheck_naive(exponent, np.random.randn(5,))
     ### END YOUR CODE
 
 

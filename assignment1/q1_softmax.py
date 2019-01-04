@@ -82,7 +82,8 @@ def test_softmax():
     """
     print "Running your tests..."
     ### YOUR CODE HERE
-    raise NotImplementedError
+    test4 = softmax(np.array([1,1]))
+    assert np.allclose(test4, np.array([0.5, 0.5]), rtol=1e-5, atol=1e-6)
     ### END YOUR CODE
 
 

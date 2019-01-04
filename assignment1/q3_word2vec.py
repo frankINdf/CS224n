@@ -58,7 +58,15 @@ def softmaxCostAndGradient(predicted, target, outputVectors, dataset):
     """
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    out = np.dot(outputVectors, predicted)
+    correct_score = out[target]
+    cost = -np.log( np.exp(correct_score) / np.sum(np.exp(out)))
+
+    margin = np.exp(out) / np.sum(np.exp(out))
+    margin[target] -= 1
+    gradPred = np.dot(margin.T, outputVectors)
+    grad = np.dot(margin, predicted.T)
+
     ### END YOUR CODE
 
     return cost, gradPred, grad

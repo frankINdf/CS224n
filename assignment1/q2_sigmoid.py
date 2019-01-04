@@ -72,7 +72,19 @@ def test_sigmoid():
     """
     print "Running your tests..."
     ### YOUR CODE HERE
-    raise NotImplementedError
+    x = np.array([[0, 0], [0, 0]])
+    f = sigmoid(x)
+    g = sigmoid_grad(f)
+    f_ans = np.array([
+        [0.5, 0.5],
+        [0.5, 0.5]
+        ])
+    assert np.allclose(f, f_ans, rtol=1e-05, atol=1e-06)
+    g_ans = np.array([
+        [0.25, 0.25],
+        [0.25, 0.25]
+        ])
+    assert np.allclose(g, g_ans, rtol=1e-05, atol=1e-06)
     ### END YOUR CODE
 
 
