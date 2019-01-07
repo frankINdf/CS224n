@@ -68,7 +68,6 @@ def softmaxCostAndGradient(predicted, target, outputVectors, dataset):
     grad = np.outer(margin, predicted)
 
     ### END YOUR CODE
-
     return cost, gradPred, grad
 
 
@@ -105,12 +104,13 @@ def negSamplingCostAndGradient(predicted, target, outputVectors, dataset,
 
     ### YOUR CODE HERE
     grad = np.zeros_like(outputVectors)
-    gradPred = np.zeros_like(predicted)
+    gradPred = np.zeros(predicted.shape)
+    cost = 0.0
 
     sig_target = sigmoid(np.dot(outputVectors[target], predicted))
-    cost = -np.log(sig_target)
-    grad[target] += -(sig_target - 1) * predicted
-    gradPred += -(sig_target - 1) * outputVectors[target]
+    cost -= np.log(sig_target)
+    grad[target] += -predicted * (sig_target - 1.0)
+    gradPred += - outputVectors[target] * (sig_target - 1.0)
 
     for j in range(K):
         vec_j = outputVectors[indices[j+1]]
@@ -165,7 +165,6 @@ def skipgram(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
         gradOut += grad
 
     ### END YOUR CODE
-
     return cost, gradIn, gradOut
 
 
@@ -190,9 +189,12 @@ def cbow(currentWord, C, contextWords, tokens, inputVectors, outputVectors,
     context_ids = [tokens[c] for c in contextWords]
     context_vec = np.sum(inputVectors[context_ids], axis=0)
     target = tokens[currentWord]
-    cost, gradPred, grad = word2vecCostAndGradient(context_vec, target, outputVectors, dataset)
+    cost, gradPred, gradOut = word2vecCostAndGradient(context_vec, target, outputVectors, dataset)
+    for i in context_ids:
+        gradIn[i] += gradPred
 
     ### END YOUR CODE
+
 
     return cost, gradIn, gradOut
 
@@ -232,10 +234,12 @@ def test_word2vec():
     """ Interface to the dataset for negative sampling """
     dataset = type('dummy', (), {})()
     def dummySampleTokenIdx():
+        # random.seed(100)
         return random.randint(0, 4)
 
     def getRandomContext(C):
         tokens = ["a", "b", "c", "d", "e"]
+        # random.seed(100)
         return tokens[random.randint(0,4)], \
             [tokens[random.randint(0,4)] for i in xrange(2*C)]
     dataset.sampleTokenIdx = dummySampleTokenIdx
@@ -246,6 +250,15 @@ def test_word2vec():
     dummy_vectors = normalizeRows(np.random.randn(10,3))
     dummy_tokens = dict([("a",0), ("b",1), ("c",2),("d",3),("e",4)])
     print "==== Gradient check for skip-gram ===="
+    predicted = np.array([1, 1, 1, 1])
+    target = 2
+    np.random.seed(100)
+    outputVectors = np.random.randn(10,4)
+
+    print(softmaxCostAndGradient(predicted, target, outputVectors, dataset))
+    print(negSamplingCostAndGradient(predicted, target, outputVectors, dataset,
+                               K=10))
+
     gradcheck_naive(lambda vec: word2vec_sgd_wrapper(
         skipgram, dummy_tokens, vec, dataset, 5, softmaxCostAndGradient),
         dummy_vectors)

@@ -2,6 +2,7 @@
 
 import random
 import numpy as np
+print 2
 from utils.treebank import StanfordSentiment
 import matplotlib
 matplotlib.use('agg')
@@ -10,7 +11,7 @@ import time
 
 from q3_word2vec import *
 from q3_sgd import *
-
+print 'start'
 # Reset the random seed to make sure that everyone gets the same results
 random.seed(314)
 dataset = StanfordSentiment()
@@ -32,13 +33,13 @@ wordVectors = np.concatenate(
     ((np.random.rand(nWords, dimVectors) - 0.5) /
        dimVectors, np.zeros((nWords, dimVectors))),
     axis=0)
+print(wordVectors)
 wordVectors = sgd(
-    lambda vec: word2vec_sgd_wrapper(skipgram, tokens, vec, dataset, C,
-        negSamplingCostAndGradient),
-    wordVectors, 0.3, 40000, None, True, PRINT_EVERY=10)
+    lambda vec: word2vec_sgd_wrapper(skipgram, tokens, vec, dataset, C, negSamplingCostAndGradient), wordVectors, 0.3, 40000, None, True, PRINT_EVERY=10)
 # Note that normalization is not called here. This is not a bug,
 # normalizing during training loses the notion of length.
 
+"""
 print "sanity check: cost at convergence should be around or below 10"
 print "training took %d seconds" % (time.time() - startTime)
 
@@ -69,3 +70,4 @@ plt.xlim((np.min(coord[:,0]), np.max(coord[:,0])))
 plt.ylim((np.min(coord[:,1]), np.max(coord[:,1])))
 
 plt.savefig('q3_word_vectors.png')
+"""
