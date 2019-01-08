@@ -105,7 +105,8 @@ class ParserModel(Model):
         """
         ### YOUR CODE HERE
         embedding = tf.Variable(initial_value=self.pretrained_embeddings)
-        embeddings = tf.nn.embedding_lookup(embedding, self.input_placeholder)
+        embedding_results = tf.nn.embedding_lookup(embedding, self.input_placeholder)
+        embeddings = tf.reshap(embedding_results, [-1, Config.embed_size* Config.n_features])
 
         ### END YOUR CODE
         return embeddings
@@ -130,12 +131,14 @@ class ParserModel(Model):
         Returns:
             pred: tf.Tensor of shape (batch_size, n_classes)
         """
-
-        x = self.add_embedding()
-        ### YOUR CODE HERE
-        weight_h = tf.Variable()
-
-        hidden = tf.nn.relu(x)
+        xavier_weight = xavier_weight_init()
+        weight_h = tf.Variable(xavier_weight((Config.n_features*Config.embed_size, Config.hidden_size)), name="W")
+        bias_h = tf.Variable(tf.zeros(Config.hidden_size), name="b")
+        pred_u = tf.Variable(xavier_weight((Config.hidden_size, Config.n_classes)), name="U")
+        bias_u = tf.Variable(tf.zeros(Config.n_classes), name="b22")
+        h = tf.nn.relu(tf.matmul(x, weight_h) + bias_h)
+        h_drop = tf.nn.dropout(h, self.dropout_placeholder)
+        pred = tf.matmul(h_drop, pred_u) + bias_u
         ### END YOUR CODE
         return pred
 
@@ -153,6 +156,7 @@ class ParserModel(Model):
             loss: A 0-d tensor (scalar)
         """
         ### YOUR CODE HERE
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pre, self.labels_placeholder))
         ### END YOUR CODE
         return loss
 
@@ -177,6 +181,7 @@ class ParserModel(Model):
             train_op: The Op for training.
         """
         ### YOUR CODE HERE
+        train_op = tf.train.AdamOptimizer(Config.lr).minimize(loss)
         ### END YOUR CODE
         return train_op
 
@@ -193,22 +198,21 @@ class ParserModel(Model):
             loss = self.train_on_batch(sess, train_x, train_y)
             prog.update(i + 1, [("train loss", loss)], force=i + 1 == n_minibatches)
 
-        print "Evaluating on dev set",
+        print("Evaluating on dev set")
         dev_UAS, _ = parser.parse(dev_set)
-        print "- dev UAS: {:.2f}".format(dev_UAS * 100.0)
+        print("- dev UAS: {:.2f}".format(dev_UAS * 100.0))
         return dev_UAS
 
     def fit(self, sess, saver, parser, train_examples, dev_set):
         best_dev_UAS = 0
         for epoch in range(self.config.n_epochs):
-            print "Epoch {:} out of {:}".format(epoch + 1, self.config.n_epochs)
+            print("Epoch {:} out of {:}".format(epoch + 1, self.config.n_epochs))
             dev_UAS = self.run_epoch(sess, parser, train_examples, dev_set)
             if dev_UAS > best_dev_UAS:
                 best_dev_UAS = dev_UAS
                 if saver:
-                    print "New best dev UAS! Saving model in ./data/weights/parser.weights"
+                    print("New best dev UAS! Saving model in ./data/weights/parser.weights")
                     saver.save(sess, './data/weights/parser.weights')
-            print
 
     def __init__(self, config, pretrained_embeddings):
         self.pretrained_embeddings = pretrained_embeddings
@@ -217,46 +221,46 @@ class ParserModel(Model):
 
 
 def main(debug=True):
-    print 80 * "="
-    print "INITIALIZING"
-    print 80 * "="
+    print(80 * "=")
+    print("INITIALIZING")
+    print(80 * "=")
     config = Config()
     parser, embeddings, train_examples, dev_set, test_set = load_and_preprocess_data(debug)
     if not os.path.exists('./data/weights/'):
         os.makedirs('./data/weights/')
 
     with tf.Graph().as_default() as graph:
-        print "Building model...",
+        print("Building model...")
         start = time.time()
         model = ParserModel(config, embeddings)
         parser.model = model
         init_op = tf.global_variables_initializer()
         saver = None if debug else tf.train.Saver()
-        print "took {:.2f} seconds\n".format(time.time() - start)
+        print("took {:.2f} seconds\n".format(time.time() - start))
     graph.finalize()
 
     with tf.Session(graph=graph) as session:
         parser.session = session
         session.run(init_op)
 
-        print 80 * "="
-        print "TRAINING"
-        print 80 * "="
+        print(80 * "=")
+        print("TRAINING")
+        print(80 * "=")
         model.fit(session, saver, parser, train_examples, dev_set)
 
         if not debug:
-            print 80 * "="
-            print "TESTING"
-            print 80 * "="
-            print "Restoring the best model weights found on the dev set"
+            print(80 * "=")
+            print("TESTING")
+            print(80 * "=")
+            print("Restoring the best model weights found on the dev set")
             saver.restore(session, './data/weights/parser.weights')
-            print "Final evaluation on test set",
+            print("Final evaluation on test set",)
             UAS, dependencies = parser.parse(test_set)
-            print "- test UAS: {:.2f}".format(UAS * 100.0)
-            print "Writing predictions"
+            print("- test UAS: {:.2f}".format(UAS * 100.0))
+            print("Writing predictions")
             with open('q2_test.predicted.pkl', 'w') as f:
                 cPickle.dump(dependencies, f, -1)
-            print "Done!"
+            print("Done!")
 
 
 if __name__ == '__main__':
