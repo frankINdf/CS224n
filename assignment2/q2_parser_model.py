@@ -54,6 +54,9 @@ class ParserModel(Model):
         (Don't change the variable names)
         """
         ### YOUR CODE HERE
+        self.input_placeholder = tf.placeholder(shape=(None, Config.n_features), dtype=tf.int32, name="input")
+        self.labels_placeholder = tf.placeholder(shape=(None, Config.n_classes), dtype=tf.float32, name="label")
+        self.dropout_placeholder = tf.placeholder(name="drop", dtype=tf.float32)
         ### END YOUR CODE
 
     def create_feed_dict(self, inputs_batch, labels_batch=None, dropout=0):
@@ -79,6 +82,7 @@ class ParserModel(Model):
             feed_dict: The feed dictionary mapping from placeholders to values.
         """
         ### YOUR CODE HERE
+        feed_dict = {self.input_placeholder: input_batch,self.labels_placeholder: labels_batch, self.drop: dropout}
         ### END YOUR CODE
         return feed_dict
 
@@ -100,6 +104,9 @@ class ParserModel(Model):
             embeddings: tf.Tensor of shape (None, n_features*embed_size)
         """
         ### YOUR CODE HERE
+        embedding = tf.Variable(initial_value=self.pretrained_embeddings)
+        embeddings = tf.nn.embedding_lookup(embedding, self.input_placeholder)
+
         ### END YOUR CODE
         return embeddings
 
@@ -126,6 +133,9 @@ class ParserModel(Model):
 
         x = self.add_embedding()
         ### YOUR CODE HERE
+        weight_h = tf.Variable()
+
+        hidden = tf.nn.relu(x)
         ### END YOUR CODE
         return pred
 

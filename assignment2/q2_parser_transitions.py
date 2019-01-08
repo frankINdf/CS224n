@@ -1,3 +1,4 @@
+import math
 class PartialParse(object):
     def __init__(self, sentence):
         """Initializes this partial parse.
@@ -21,6 +22,9 @@ class PartialParse(object):
         self.sentence = sentence
 
         ### YOUR CODE HERE
+        self.stack = ['ROOT']
+        self.buffer = [w for w in self.sentence]
+        self.dependencies = []
         ### END YOUR CODE
 
     def parse_step(self, transition):
@@ -31,7 +35,18 @@ class PartialParse(object):
                         and right-arc transitions. You can assume the provided transition is a legal
                         transition.
         """
-        ### YOUR CODE HERE
+        ## YOUR CODE HERE
+        if transition == 'S':
+            self.stack.append(self.buffer[0])
+            self.buffer.pop(0)
+        elif transition == 'LA':
+            self.dependencies.append((self.stack[-1], self.stack[-2]))
+            self.stack.pop(-2)
+        elif transition == 'RA':
+            self.dependencies.append((self.stack[-2], self.stack[-1]))
+
+            self.stack.pop(-1)
+
         ### END YOUR CODE
 
     def parse(self, transitions):
@@ -66,6 +81,24 @@ def minibatch_parse(sentences, model, batch_size):
     """
 
     ### YOUR CODE HERE
+    parser = []
+    for sentence in sentences:
+        parser.append(PartialParse(sentence))
+    batches = math.ceil(len(parser) / batch_size)
+    for batch in range(batches):
+        start = batch * batch_size
+        end = min(len(parser), (batch + 1) * batch_size)
+        minbatch = parser[start:end]
+        while len(minbatch) > 0:
+            transitions = model.predict(minbatch)
+            for index, action in enumerate(transitions):
+                minbatch[index].parse_step(action)
+            minbatch = [parse for parse in minbatch if len(parse.stack) > 1 or len(parse.buffer) > 0]
+    dependencies = []
+    for n in range(len(sentence)):
+        dependencies.append(parser[n].dependencies)
+
+
     ### END YOUR CODE
 
     return dependencies
@@ -85,7 +118,7 @@ def test_step(name, transition, stack, buf, deps,
         "{:} test resulted in buffer {:}, expected {:}".format(name, buf, ex_buf)
     assert deps == ex_deps, \
         "{:} test resulted in dependency list {:}, expected {:}".format(name, deps, ex_deps)
-    print "{:} test passed!".format(name)
+    print("{:} test passed!".format(name))
 
 
 def test_parse_step():
@@ -112,7 +145,7 @@ def test_parse():
         "parse test resulted in dependencies {:}, expected {:}".format(dependencies, expected)
     assert tuple(sentence) == ("parse", "this", "sentence"), \
         "parse test failed: the input sentence should not be modified"
-    print "parse test passed!"
+    print("parse test passed!")
 
 
 class DummyModel(object):
@@ -121,8 +154,7 @@ class DummyModel(object):
     the sentence is "right", "left" if otherwise.
     """
     def predict(self, partial_parses):
-        return [("RA" if pp.stack[1] is "right" else "LA") if len(pp.buffer) == 0 else "S"
-                for pp in partial_parses]
+        return [("RA" if pp.stack[1] is "right" else "LA") if len(pp.buffer) == 0 else "S"  for pp in partial_parses]
 
 
 def test_dependencies(name, deps, ex_deps):
@@ -149,7 +181,7 @@ def test_minibatch_parse():
                       (('only', 'ROOT'), ('only', 'arcs'), ('only', 'left')))
     test_dependencies("minibatch_parse", deps[3],
                       (('again', 'ROOT'), ('again', 'arcs'), ('again', 'left'), ('again', 'only')))
-    print "minibatch_parse test passed!"
+    print("minibatch_parse test passed!")
 
 if __name__ == '__main__':
     test_parse_step()
