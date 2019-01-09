@@ -6,7 +6,7 @@ import time
 import os
 import logging
 from collections import Counter
-from general_utils import get_minibatches
+from utils.general_utils import get_minibatches
 from q2_parser_transitions import minibatch_parse
 
 import numpy as np
@@ -122,7 +122,7 @@ class Parser(object):
             p_features = [self.P_NULL] * (3 - len(stack)) + [ex['pos'][x] for x in stack[-3:]]
             p_features += [ex['pos'][x] for x in buf[:3]] + [self.P_NULL] * (3 - len(buf))
 
-        for i in xrange(2):
+        for i in range(2):
             if i < len(stack):
                 k = stack[-i-1]
                 lc = get_lc(k)
@@ -199,10 +199,10 @@ class Parser(object):
 
             # arcs = {(h, t, label)}
             stack = [0]
-            buf = [i + 1 for i in xrange(n_words)]
+            buf = [i + 1 for i in range(n_words)]
             arcs = []
             instances = []
-            for i in xrange(n_words * 2):
+            for i in range(n_words * 2):
                 gold_t = self.get_oracle(stack, buf, ex)
                 if gold_t is None:
                     break
@@ -268,12 +268,15 @@ class ModelWrapper(object):
     def predict(self, partial_parses):
         mb_x = [self.parser.extract_features(p.stack, p.buffer, p.dependencies,
                                              self.dataset[self.sentence_id_to_idx[id(p.sentence)]])
+
                 for p in partial_parses]
+        # print(mb_x)
         mb_x = np.array(mb_x).astype('int32')
         mb_l = [self.parser.legal_labels(p.stack, p.buffer) for p in partial_parses]
         pred = self.parser.model.predict_on_batch(self.parser.session, mb_x)
         pred = np.argmax(pred + 10000 * np.array(mb_l).astype('float32'), 1)
         pred = ["S" if p == 2 else ("LA" if p == 0 else "RA") for p in pred]
+        print(pred)
         return pred
 
 
@@ -340,7 +343,7 @@ def minibatches(data, batch_size):
 def load_and_preprocess_data(reduced=True):
     config = Config()
 
-    print "Loading data...",
+    print("Loading data...",)
     start = time.time()
     train_set = read_conll(os.path.join(config.data_path, config.train_file),
                            lowercase=config.lowercase)
@@ -352,14 +355,14 @@ def load_and_preprocess_data(reduced=True):
         train_set = train_set[:1000]
         dev_set = dev_set[:500]
         test_set = test_set[:500]
-    print "took {:.2f} seconds".format(time.time() - start)
+    print("took {:.2f} seconds".format(time.time() - start))
 
-    print "Building parser...",
+    print("Building parser...",)
     start = time.time()
     parser = Parser(train_set)
-    print "took {:.2f} seconds".format(time.time() - start)
+    print("took {:.2f} seconds".format(time.time() - start))
 
-    print "Loading pretrained embeddings...",
+    print("Loading pretrained embeddings...",)
     start = time.time()
     word_vectors = {}
     for line in open(config.embedding_file).readlines():
@@ -373,19 +376,19 @@ def load_and_preprocess_data(reduced=True):
             embeddings_matrix[i] = word_vectors[token]
         elif token.lower() in word_vectors:
             embeddings_matrix[i] = word_vectors[token.lower()]
-    print "took {:.2f} seconds".format(time.time() - start)
+    print("took {:.2f} seconds".format(time.time() - start))
 
-    print "Vectorizing data...",
+    print("Vectorizing data...",)
     start = time.time()
     train_set = parser.vectorize(train_set)
     dev_set = parser.vectorize(dev_set)
     test_set = parser.vectorize(test_set)
-    print "took {:.2f} seconds".format(time.time() - start)
+    print("took {:.2f} seconds".format(time.time() - start))
 
-    print "Preprocessing training data...",
+    print("Preprocessing training data...",)
     start = time.time()
     train_examples = parser.create_instances(train_set)
-    print "took {:.2f} seconds".format(time.time() - start)
+    print("took {:.2f} seconds".format(time.time() - start))
 
     return parser, embeddings_matrix, train_examples, dev_set, test_set,
 

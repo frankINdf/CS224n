@@ -1,4 +1,4 @@
-import cPickle
+import pickle as cPickle
 import os
 import time
 import tensorflow as tf
@@ -82,7 +82,7 @@ class ParserModel(Model):
             feed_dict: The feed dictionary mapping from placeholders to values.
         """
         ### YOUR CODE HERE
-        feed_dict = {self.input_placeholder: input_batch,self.labels_placeholder: labels_batch, self.drop: dropout}
+        feed_dict = {self.input_placeholder: inputs_batch,self.labels_placeholder: labels_batch, self.dropout_placeholder: dropout}
         ### END YOUR CODE
         return feed_dict
 
@@ -106,7 +106,7 @@ class ParserModel(Model):
         ### YOUR CODE HERE
         embedding = tf.Variable(initial_value=self.pretrained_embeddings)
         embedding_results = tf.nn.embedding_lookup(embedding, self.input_placeholder)
-        embeddings = tf.reshap(embedding_results, [-1, Config.embed_size* Config.n_features])
+        embeddings = tf.reshape(embedding_results, [-1, Config.embed_size* Config.n_features])
 
         ### END YOUR CODE
         return embeddings
@@ -131,6 +131,7 @@ class ParserModel(Model):
         Returns:
             pred: tf.Tensor of shape (batch_size, n_classes)
         """
+        x = self.add_embedding()
         xavier_weight = xavier_weight_init()
         weight_h = tf.Variable(xavier_weight((Config.n_features*Config.embed_size, Config.hidden_size)), name="W")
         bias_h = tf.Variable(tf.zeros(Config.hidden_size), name="b")
@@ -156,7 +157,7 @@ class ParserModel(Model):
             loss: A 0-d tensor (scalar)
         """
         ### YOUR CODE HERE
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pre, self.labels_placeholder))
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels_placeholder))
         ### END YOUR CODE
         return loss
 
@@ -196,7 +197,7 @@ class ParserModel(Model):
         prog = tf.keras.utils.Progbar(target=n_minibatches)
         for i, (train_x, train_y) in enumerate(minibatches(train_examples, self.config.batch_size)):
             loss = self.train_on_batch(sess, train_x, train_y)
-            prog.update(i + 1, [("train loss", loss)], force=i + 1 == n_minibatches)
+            prog.update(i + 1, [("train loss", loss)])# , force=i + 1 == n_minibatches)
 
         print("Evaluating on dev set")
         dev_UAS, _ = parser.parse(dev_set)
@@ -226,6 +227,7 @@ def main(debug=True):
     print(80 * "=")
     config = Config()
     parser, embeddings, train_examples, dev_set, test_set = load_and_preprocess_data(debug)
+    print(dev_set)
     if not os.path.exists('./data/weights/'):
         os.makedirs('./data/weights/')
 
