@@ -90,6 +90,7 @@ def minibatch_parse(sentences, model, batch_size):
         end = min(len(parser), (batch + 1) * batch_size)
         minbatch = parser[start:end]
         while len(minbatch) > 0:
+
             transitions = model.predict(minbatch)
             for index, action in enumerate(transitions):
                 minbatch[index].parse_step(action)
