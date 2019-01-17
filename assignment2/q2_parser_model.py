@@ -22,9 +22,8 @@ class Config(object):
     embed_size = 50
     hidden_size = 200
     batch_size = 1024
-    n_epochs = 10
-    lr = 0.0005
-
+    n_epochs = 2
+    lr = 0.001
 
 class ParserModel(Model):
     """
@@ -54,12 +53,12 @@ class ParserModel(Model):
         (Don't change the variable names)
         """
         ### YOUR CODE HERE
-        self.input_placeholder = tf.placeholder(shape=(None, Config.n_features), dtype=tf.int32, name="input")
-        self.labels_placeholder = tf.placeholder(shape=(None, Config.n_classes), dtype=tf.float32, name="label")
-        self.dropout_placeholder = tf.placeholder(name="drop", dtype=tf.float32)
+        self.input_placeholder = tf.placeholder(tf.int32, shape=(None, Config.n_features), name="input")
+        self.labels_placeholder = tf.placeholder(tf.float32, shape=(None, Config.n_classes), name="label")
+        self.dropout_placeholder = tf.placeholder(tf.float32, name="drop")
         ### END YOUR CODE
 
-    def create_feed_dict(self, inputs_batch, labels_batch=None, dropout=0):
+    def create_feed_dict(self, inputs_batch, labels_batch=None, dropout=0.5):
         """Creates the feed_dict for the dependency parser.
 
         A feed_dict takes the form of:
@@ -82,9 +81,14 @@ class ParserModel(Model):
             feed_dict: The feed dictionary mapping from placeholders to values.
         """
         ### YOUR CODE HERE
-        feed_dict = {self.input_placeholder: inputs_batch,self.labels_placeholder: labels_batch, self.dropout_placeholder: dropout}
+        if labels_batch is None:
+            feed_dict = {self.input_placeholder: inputs_batch, self.dropout_placeholder: dropout}
+        else:
+            feed_dict = {self.input_placeholder: inputs_batch, self.labels_placeholder: labels_batch,
+                     self.dropout_placeholder: dropout}
         ### END YOUR CODE
         return feed_dict
+
 
     def add_embedding(self):
         """Adds an embedding layer that maps from input tokens (integers) to vectors and then
@@ -104,6 +108,7 @@ class ParserModel(Model):
             embeddings: tf.Tensor of shape (None, n_features*embed_size)
         """
         ### YOUR CODE HERE
+
         embedding = tf.Variable(initial_value=self.pretrained_embeddings)
         embedding_results = tf.nn.embedding_lookup(embedding, self.input_placeholder)
         embeddings = tf.reshape(embedding_results, [-1, Config.embed_size* Config.n_features])
@@ -131,15 +136,26 @@ class ParserModel(Model):
         Returns:
             pred: tf.Tensor of shape (batch_size, n_classes)
         """
+        # x = self.add_embedding()
+        # xavier_weight = xavier_weight_init()
+        # weight_h = tf.Variable(xavier_weight((Config.n_features*Config.embed_size, Config.hidden_size)), name="W")
+        # bias_h = tf.Variable(tf.zeros(Config.hidden_size), name="b")
+        # pred_u = tf.Variable(xavier_weight((Config.hidden_size, Config.n_classes)), name="U")
+        # bias_u = tf.Variable(tf.zeros(Config.n_classes), name="b2")
+        # h = tf.nn.relu(tf.matmul(x, weight_h) + bias_h)
+        # h_drop = tf.nn.dropout(h, self.dropout_placeholder)
+        # pred = tf.matmul(h_drop, pred_u) + bias_u
+
         x = self.add_embedding()
-        xavier_weight = xavier_weight_init()
-        weight_h = tf.Variable(xavier_weight((Config.n_features*Config.embed_size, Config.hidden_size)), name="W")
-        bias_h = tf.Variable(tf.zeros(Config.hidden_size), name="b")
-        pred_u = tf.Variable(xavier_weight((Config.hidden_size, Config.n_classes)), name="U")
-        bias_u = tf.Variable(tf.zeros(Config.n_classes), name="b22")
-        h = tf.nn.relu(tf.matmul(x, weight_h) + bias_h)
-        h_drop = tf.nn.dropout(h, self.dropout_placeholder)
-        pred = tf.matmul(h_drop, pred_u) + bias_u
+        ### YOUR CODE HERE
+        xavier_initializer = xavier_weight_init()
+        W = tf.Variable(xavier_initializer((Config.n_features * Config.embed_size, Config.hidden_size)), name="W")
+        b1 = tf.Variable(tf.zeros(Config.hidden_size), name="b1")
+        U = tf.Variable(xavier_initializer((Config.hidden_size, Config.n_classes)), name="U")
+        b2 = tf.Variable(tf.zeros(Config.n_classes), name="b2")
+        hidden = tf.nn.relu(tf.matmul(x, W) + b1)
+        h_drop = tf.nn.dropout(hidden, self.dropout_placeholder)
+        pred = tf.matmul(h_drop, U) + b2
         ### END YOUR CODE
         return pred
 
@@ -157,8 +173,9 @@ class ParserModel(Model):
             loss: A 0-d tensor (scalar)
         """
         ### YOUR CODE HERE
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels_placeholder))
+        # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels_placeholder))
         ### END YOUR CODE
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels_placeholder))
         return loss
 
     def add_training_op(self, loss):
@@ -182,8 +199,9 @@ class ParserModel(Model):
             train_op: The Op for training.
         """
         ### YOUR CODE HERE
-        train_op = tf.train.AdamOptimizer(Config.lr).minimize(loss)
+        # train_op = tf.train.AdamOptimizer(Config.lr).minimize(loss)
         ### END YOUR CODE
+        train_op = tf.train.AdamOptimizer(Config.lr).minimize(loss)
         return train_op
 
     def train_on_batch(self, sess, inputs_batch, labels_batch):
@@ -221,13 +239,13 @@ class ParserModel(Model):
         self.build()
 
 
-def main(debug=True):
+def main(debug=False):
     print(80 * "=")
     print("INITIALIZING")
     print(80 * "=")
     config = Config()
     parser, embeddings, train_examples, dev_set, test_set = load_and_preprocess_data(debug)
-    print(dev_set)
+
     if not os.path.exists('./data/weights/'):
         os.makedirs('./data/weights/')
 
@@ -263,7 +281,6 @@ def main(debug=True):
             with open('q2_test.predicted.pkl', 'w') as f:
                 cPickle.dump(dependencies, f, -1)
             print("Done!")
-
 
 if __name__ == '__main__':
     main()

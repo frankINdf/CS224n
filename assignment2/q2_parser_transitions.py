@@ -40,8 +40,8 @@ class PartialParse(object):
             self.stack.append(self.buffer[0])
             self.buffer.pop(0)
         elif transition == 'LA':
-            self.dependencies.append((self.stack[-1], self.stack[-2]))
-            self.stack.pop(-2)
+                self.dependencies.append((self.stack[-1], self.stack[-2]))
+                self.stack.pop(-2)
         elif transition == 'RA':
             self.dependencies.append((self.stack[-2], self.stack[-1]))
 
@@ -79,7 +79,22 @@ def minibatch_parse(sentences, model, batch_size):
                       Ordering should be the same as in sentences (i.e., dependencies[i] should
                       contain the parse for sentences[i]).
     """
+    dependencies = []
+    parse = [PartialParse(sentence) for sentence in sentences]
+    while(len(parse) > 0):#对于每个batch
+        parse_mini = parse[:batch_size]
+        while(len(parse_mini) > 0):
 
+            transitions = model.predict(parse_mini)
+            print(transitions)
+            for i, act in enumerate(transitions):
+                parse_mini[i].parse_step(act)
+            #not stop if len(parse.stack) > 1 or len(parse.buffer) > 0
+            #only stop if if len(parse.stack) == 1 && len(parse.buffer) == 0
+            parse_mini = [parse for parse in parse_mini if len(parse.stack) > 1 or len(parse.buffer) > 0]
+        dependencies.extend(parse.dependencies for parse in parse[:batch_size])
+        parse = parse[batch_size:]
+    """
     ### YOUR CODE HERE
     parser = []
     for sentence in sentences:
@@ -88,9 +103,8 @@ def minibatch_parse(sentences, model, batch_size):
     for batch in range(batches):
         start = batch * batch_size
         end = min(len(parser), (batch + 1) * batch_size)
-        minbatch = parser[start:end]
-        while len(minbatch) > 0:
-
+        minbatch = parser[: batch_size]
+        while(len(minbatch) > 0):
             transitions = model.predict(minbatch)
             for index, action in enumerate(transitions):
                 minbatch[index].parse_step(action)
@@ -101,7 +115,7 @@ def minibatch_parse(sentences, model, batch_size):
 
 
     ### END YOUR CODE
-
+    """
     return dependencies
 
 
