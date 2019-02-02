@@ -61,11 +61,11 @@ class SequencePredictor(Model):
             feed_dict[self.labels_placeholder] = labels_batch
         return feed_dict
 
-    def add_prediction_op(self): 
+    def add_prediction_op(self):
         """Runs an rnn on the input using TensorFlows's
         @tf.nn.dynamic_rnn function, and returns the final state as a prediction.
 
-        TODO: 
+        TODO:
             - Call tf.nn.dynamic_rnn using @cell below. See:
               https://www.tensorflow.org/api_docs/python/nn/recurrent_neural_networks
             - Apply a sigmoid transformation on the final state to
@@ -87,6 +87,8 @@ class SequencePredictor(Model):
 
         x = self.inputs_placeholder
         ### YOUR CODE HERE (~2-3 lines)
+        _, pred = tf.nn.dynamic_rnn(cell, x, dtype=tf.float32)
+        pred = tf.sigmoid(pred)
         ### END YOUR CODE
 
         return preds #state # preds
@@ -108,7 +110,7 @@ class SequencePredictor(Model):
         y = self.labels_placeholder
 
         ### YOUR CODE HERE (~1-2 lines)
-
+        loss = tf.reduce_mean(tf.nn.l2_loss(preds - y))
         ### END YOUR CODE
 
         return loss
@@ -139,7 +141,13 @@ class SequencePredictor(Model):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.lr)
 
         ### YOUR CODE HERE (~6-10 lines)
-
+        g = [g_v_i[0] for g_v_i in g_v]
+        v = [g_v_i[1] for g_v_i in g_v]
+        if self.config.clip_gradients is True:
+            g = tf.clip_by_global_norm(g, self.config.max_grad_norm)[0]
+        self.grad_norm = tf.global_norm(g)
+        g_v = [(g[i], v[i]) for i in range(len(g))]
+        train_op = optimizer.apply_gradients(g_v)
         # - Remember to clip gradients only if self.config.clip_gradients
         # is True.
         # - Remember to set self.grad_norm
